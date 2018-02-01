@@ -2,16 +2,16 @@
 from __future__ import print_function
 import httplib2
 import os
+import sys
+import datetime
+
+from collections import Counter
+from dateutil.relativedelta import relativedelta
 
 from apiclient import discovery
 from oauth2client import client
 from oauth2client import tools
 from oauth2client.file import Storage
-
-import datetime
-
-from collections import Counter
-from dateutil.relativedelta import relativedelta
 
 
 try:
@@ -56,25 +56,50 @@ def get_credentials():
     return credentials
 
 
-def main():
-    """Shows basic usage of the Google Calendar API.
+def get_metings_count_and_weeks(meetings, num_months):
+    num_of_weeks = 0
+    num_of_meetings = 0
 
-    Creates a Google Calendar API service object and outputs a list of the next
-    10 events on the user's calendar.
+    last_month = get_prev_nth_month_date(num_months)
+
+    for i in range(num_months):
+        last_month = get_prev_nth_month_date(i)
+        weeklist = get_weeks_of_month(last_month.month, last_month.year)
+        num_of_weeks += len(weeklist)
+
+    num_of_meetings = len(meetings)
+
+    return num_of_meetings, num_of_weeks
+
+
+def get_busiest_week(meetings, num_months):
     """
+        If multiple week have same number of meetings, we will get most recent
+        week statistics
+    """
+    max_meetings = tuple()
+    min_meetings = tuple()
 
-    num_months = 3
-    #  Must be an RFC3339 timestamp with mandatory time zone offset,
-    # e.g., 2011-06-03T10:00:00-07:00, 2011-06-03T10:00:00Z.
-    # 'Z' indicates UTC time
-    to_date = datetime.datetime.utcnow().isoformat() + 'Z'
-    from_date = get_prev_nth_month_date(num_months).isoformat() + 'Z'
+    max_meeting_count = -1
+    min_meeting_count = sys.maxsize
 
-    meetings = get_meetings(from_date, to_date)
+    for i in range(num_months):
+        last_month = datetime.datetime.now() - relativedelta(months=i)
+        weeklist = get_weeks_of_month(last_month.month, last_month.year)
+        for week in weeklist:
+            # print(week)
+            meetings_of_week = get_meetings_between_dates(
+                meetings, week[0], week[-1])
 
-    print("Time spent in meetings:", time_spent_in_meetings(meetings))   # 1
-    print("Time spent in interviews:", time_spent_in_interviews(meetings))  # 5
-    print("Top attendees:", get_top_n_attendees(meetings, 3))
+            if len(meetings_of_week) > max_meeting_count:
+                max_meeting_count = len(meetings_of_week)
+                max_meetings = (week[0], week[-1], max_meeting_count)
+
+            if len(meetings_of_week) < min_meeting_count:
+                min_meeting_count = len(meetings_of_week)
+                min_meetings = (week[0], week[-1], min_meeting_count)
+
+    return min_meetings, max_meetings
 
 
 def event_has_attendees(attendees):
@@ -103,7 +128,16 @@ def get_top_n_attendees(meetings, n):
     return attendees.most_common(n)
 
 
-def get_meetings(from_date, to_date):
+def get_meetings_between_dates(meetings, from_date, to_date):
+    subset = list()
+    for meeting in meetings:
+        if from_date <= meeting['start'] <= to_date:
+            subset.append(meeting)
+
+    return subset
+
+
+def get_meetings_from_calendar_api(from_date, to_date):
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
     service = discovery.build('calendar', 'v3', http=http)
@@ -190,31 +224,21 @@ def time_spent_in_meetings(meetings):
     return total_time
 
 
-"""
+def get_weeks_of_month(month, year):
+    import calendar
 
-1. Total time spent in meetings per month for the last 3 months - Done
-    - grouping by month
+    week_list = calendar.Calendar().monthdatescalendar(year, month)
+    filtered_weeklist = []
+    for w in week_list:
+        week = list()
+        for day in w:
+            if day.month == month:
+                d = datetime.datetime.combine(
+                    day, datetime.datetime.min.time())
+                week.append(d)
+        filtered_weeklist.append(week)
 
-2. Busiest week / relaxed week - Which month had highest number of meetings/least
-number of meetings
-    - group by week
-3. Average number of meetings per week, average time spent every week in meetings.
-    - group by week
-4. Top 3 persons with whom you have meetings
-    - attendees list count of top N
-
-5. Time spent in Recruting/Conducting interviews - Done
-    - description or summary containing  words 'interview' 'connect call'
-
-
-{
-    1 : // months
-        { 1: // week
-            {meeting dict}
-            }
-}
-
-"""
+    return filtered_weeklist
 
 
 def parse_date(date_string):
@@ -232,8 +256,36 @@ def get_date(date_string):
 
 
 def get_prev_nth_month_date(n):
-    lastMonth = datetime.datetime.now() - relativedelta(months=n)
-    return lastMonth
+    last_month = datetime.datetime.now() - relativedelta(months=n)
+    return last_month
+
+
+def main():
+    num_months = 3
+    #  Must be an RFC3339 timestamp with mandatory time zone offset,
+    # e.g., 2011-06-03T10:00:00-07:00, 2011-06-03T10:00:00Z.
+    # 'Z' indicates UTC time
+    to_date = datetime.datetime.utcnow().isoformat() + 'Z'
+    from_date = get_prev_nth_month_date(num_months).isoformat() + 'Z'
+
+    meetings = get_meetings_from_calendar_api(from_date, to_date)
+
+    print("===================================================================")
+    print("==============           Meeting Stats            =================")
+    print("===================================================================")
+    total_meetings_duration = time_spent_in_meetings(meetings)
+    print("Time spent in meetings:", total_meetings_duration)   # 1
+    print("Time spent in interviews:", time_spent_in_interviews(meetings))  # 5
+    print("Top attendees:", get_top_n_attendees(meetings, 3))
+
+    relaxing_week, busiest_week = get_busiest_week(meetings, num_months)
+    print("Busiest/relaxing weeks", busiest_week, relaxing_week)
+    num_of_meetings, num_of_weeks = get_metings_count_and_weeks(
+        meetings, num_months)
+
+    print("Average meetings per week", num_of_meetings / num_of_weeks)
+    print("Average meeting duration per week",
+          total_meetings_duration / num_of_weeks)
 
 
 if __name__ == '__main__':
