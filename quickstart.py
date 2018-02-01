@@ -62,19 +62,18 @@ def main():
     http = credentials.authorize(httplib2.Http())
     service = discovery.build('calendar', 'v3', http=http)
 
-    # now = datetime.datetime.utcnow().isoformat() + 'Z'
-    # now = datetime.datetime.now()
+    now = datetime.datetime.utcnow().isoformat() + 'Z'
 
     #  Must be an RFC3339 timestamp with mandatory time zone offset,
     # e.g., 2011-06-03T10:00:00-07:00, 2011-06-03T10:00:00Z.
-    prevMonth = get_prev_nth_month_date(
-        3).isoformat() + 'Z'  # 'Z' indicates UTC time
+    # 'Z' indicates UTC time
+    prevMonth = get_prev_nth_month_date(3).isoformat() + 'Z'
 
-    print('Getting the upcoming 10 events')
+    print('Getting the past n months events')
     eventsResult = service.events().list(
         calendarId='primary',
         timeMin=prevMonth,
-        maxResults=10,
+        timeMax=now,
         singleEvents=True,
         orderBy='startTime',
         timeZone='PST').execute()
