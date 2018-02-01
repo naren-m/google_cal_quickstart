@@ -70,15 +70,16 @@ def main():
     to_date = datetime.datetime.utcnow().isoformat() + 'Z'
     from_date = get_prev_nth_month_date(num_months).isoformat() + 'Z'
 
-    print('Getting the past n months events')
     meetings = get_meetings(from_date, to_date)
-    # print(meetings)
+
     print("Time spent in meetings:", time_spent_in_meetings(meetings))   # 1
     print("Time spent in interviews:", time_spent_in_interviews(meetings))  # 5
     print("Top attendees:", get_top_n_attendees(meetings, 3))
 
 
 def event_has_attendees(attendees):
+    # Question: Does organizer comes under attendees
+    # if yes: for it to be a meeting len(attendees) >1 else >=1
     if attendees is None:
         return False
     if len(attendees) <= 1:
