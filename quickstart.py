@@ -81,15 +81,17 @@ def main():
 
     if not events:
         print('No upcoming events found.')
+
     for event in events:
         meeting = dict()
-        start = event['start'].get('dateTime', event['start'].get('date'))
-        print(start, event['summary'])
+
         meeting['organizer'] = event['organizer']
+
         if 'attendees' in event.keys():
             meeting['attendees'] = event['attendees']
         else:
             meeting['attendees'] = None
+
         if 'description' in event.keys():
             meeting['description'] = event['description']
         else:
@@ -102,9 +104,33 @@ def main():
         meeting['start'] = event['start']
         meeting['end'] = event['end']
         meeting['created'] = event['created']
+
+        start_time = parse_date(event['start'].get(
+            'dateTime', event['start'].get('date')))
+        end_time = parse_date(event['end'].get(
+            'dateTime', event['end'].get('date')))
+
+        meeting['duration'] = end_time - start_time
         meetings.append(meeting)
 
+        start = event['start'].get('dateTime', event['start'].get('date'))
+        print(start, event['summary'], meeting['duration'])
+
     # print(meetings)
+
+
+def parse_date(date_string):
+    return datetime.datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%S-08:00")
+
+
+def get_date(date_string):
+    """
+        Returns date from given string
+
+        Sample date string 2017-11-05T11:00:00-08:00
+        Returns 2017-11-05
+    """
+    return datetime.datetime.strptime(date_string.split('T')[0], "%Y-%m-%d")
 
 
 def get_prev_nth_month_date(n):
