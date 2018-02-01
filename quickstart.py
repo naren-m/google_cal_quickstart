@@ -62,23 +62,21 @@ def main():
     http = credentials.authorize(httplib2.Http())
     service = discovery.build('calendar', 'v3', http=http)
 
-    now = datetime.datetime.utcnow().isoformat() + 'Z'
-
     #  Must be an RFC3339 timestamp with mandatory time zone offset,
     # e.g., 2011-06-03T10:00:00-07:00, 2011-06-03T10:00:00Z.
     # 'Z' indicates UTC time
-    prevMonth = get_prev_nth_month_date(3).isoformat() + 'Z'
+    now = datetime.datetime.utcnow().isoformat() + 'Z'
+    prev_month = get_prev_nth_month_date(3).isoformat() + 'Z'
 
     print('Getting the past n months events')
-    eventsResult = service.events().list(
+    events_result = service.events().list(
         calendarId='primary',
-        timeMin=prevMonth,
+        timeMin=prev_month,
         timeMax=now,
         singleEvents=True,
-        orderBy='startTime',
-        timeZone='PST').execute()
+        orderBy='startTime').execute()
 
-    events = eventsResult.get('items', [])
+    events = events_result.get('items', [])
     meetings = list()
 
     if not events:
@@ -112,7 +110,6 @@ def main():
 def get_prev_nth_month_date(n):
     days = n * 30
     lastMonth = datetime.datetime.now() - datetime.timedelta(days=days)
-    print(lastMonth)
     return lastMonth
 
 
