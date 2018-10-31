@@ -1,4 +1,3 @@
-
 from __future__ import print_function
 import httplib2
 import os
@@ -75,7 +74,7 @@ def get_metings_count_and_weeks(meetings, num_months):
 def get_busiest_week(meetings, num_months):
     """
         If multiple week have same number of meetings, we will get most recent
-        week statistics
+        week statistics.
     """
     max_meetings = tuple()
     min_meetings = tuple()
@@ -87,7 +86,6 @@ def get_busiest_week(meetings, num_months):
         last_month = datetime.datetime.now() - relativedelta(months=i)
         weeklist = get_weeks_of_month(last_month.month, last_month.year)
         for week in weeklist:
-            # print(week)
             meetings_of_week = get_meetings_between_dates(
                 meetings, week[0], week[-1])
 
